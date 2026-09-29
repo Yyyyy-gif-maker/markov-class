@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="icon" href="data:,">
+<title>加权马尔科夫链 · 课堂小程序</title>
+<style>
+  :root{
+    --bg:#f2f5f9; --card:#ffffff; --ink:#1c2431; --ink2:#5b6780; --line:#e3e8f0;
+    --brand:#1f5fbf; --brand-ink:#ffffff; --brand-soft:#e9f1fd;
+    --ok:#0f7a5f; --ok-soft:#e6f6f1; --bad:#b3352a; --bad-soft:#fdecea;
+    --warn:#9a5c0e; --warn-soft:#fdf3e2;
+    --s1:#2b6ed6; --s2:#12a08a; --s3:#d9821b; --s4:#8b5cf6; --s5:#cf3f70;
+    --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 20px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0e121a; --card:#171d28; --ink:#e9eef6; --ink2:#9aa8c0; --line:#28313f;
+      --brand:#79aaf0; --brand-ink:#0e121a; --brand-soft:#1b2536;
+      --ok:#4ecfa6; --ok-soft:#122a22; --bad:#ff8f81; --bad-soft:#2d1713;
+      --warn:#e6b069; --warn-soft:#2b2113;
+      --s1:#6fa4ee; --s2:#4ecfa6; --s3:#efb45f; --s4:#b79bf5; --s5:#f08aa8;
+      --shadow:0 1px 2px rgba(0,0,0,.45),0 8px 22px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%;
+    font:16px/1.65 "PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .wrap{max-width:780px;margin:0 auto;padding:0 14px 72px}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);position:relative}
+  .top-inner{max-width:780px;margin:0 auto;padding:14px 14px 8px}
+  .brand{font-size:19px;font-weight:600;letter-spacing:.2px}
+  .brand-sub{font-size:13px;color:var(--ink2);margin-top:2px}
+  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:6px 14px 10px;max-width:780px;margin:0 auto;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{
+    flex:0 0 auto;appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink2);
+    border-radius:999px;padding:7px 13px;font-size:14px;cursor:pointer;white-space:nowrap;font-family:inherit
+  }
+  .tab.is-active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin:14px 0}
+  .card h2{margin:0 0 10px;font-size:17px;display:flex;align-items:center;gap:8px;line-height:1.4}
+  .card h3{margin:16px 0 6px;font-size:15px}
+  .step{flex:0 0 auto;width:24px;height:24px;border-radius:8px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  p{margin:8px 0}
+  .muted{color:var(--ink2);font-size:14px}
+  .small{font-size:13px}
+  ul,ol{margin:8px 0;padding-left:22px}
+  li{margin:4px 0}
+  .lead{font-size:17px}
+  .chip{display:inline-block;border-radius:999px;padding:2px 10px;font-size:13px;background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .chip.warn{background:var(--warn-soft);color:var(--warn)}
+  .chip.ok{background:var(--ok-soft);color:var(--ok)}
+  .btn{
+    appearance:none;font-family:inherit;font-size:15px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    border-radius:10px;padding:10px 14px;min-height:44px;cursor:pointer
+  }
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .btn.small{padding:6px 11px;min-height:36px;font-size:13px;border-radius:9px}
+  .btn:active{transform:translateY(1px)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .formula{
+    background:var(--brand-soft);border-radius:10px;padding:10px 12px;margin:10px 0;
+    font-family:"Cambria Math",Cambria,"Times New Roman",serif;font-size:16px;line-height:2.1;overflow-x:auto
+  }
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 3px;line-height:1.35}
+  .frac .num{border-bottom:1px solid currentColor;padding:0 4px 1px}
+  .frac .den{padding:1px 4px 0}
+  .sym{font-style:italic}
+  .tbl{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  .tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 5px;text-align:center}
+  .tbl th{font-weight:600;color:var(--ink2);font-size:13px}
+  .tbl td.k{font-weight:600}
+  .strip{display:flex;flex-wrap:wrap;gap:3px;margin:8px 0}
+  .cell{
+    width:22px;height:26px;border-radius:6px;color:#fff;font-size:12px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums
+  }
+  .cell.mark{outline:2px solid var(--ink);outline-offset:1px}
+  .bar{height:12px;border-radius:7px;background:var(--line);overflow:hidden;min-width:60px}
+  .bar > i{display:block;height:100%;border-radius:7px;background:var(--brand)}
+  .barline{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin:5px 0;font-size:14px}
+  .barline .lab{min-width:44px;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .barline .val{font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+  textarea,input[type=text]{width:100%;font-family:inherit;font-size:15px;color:var(--ink);
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+  input[type=range]{width:100%;min-height:36px;accent-color:var(--brand)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  @media(max-width:420px){ .grid2,.grid3{grid-template-columns:1fr} }
+  .matwrap{margin:10px 0}
+  .matwrap .cap{font-size:13px;color:var(--ink2);margin-bottom:4px}
+  .mat td{padding:6px 4px;border:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .mat td.hl{box-shadow:inset 0 0 0 2px var(--brand)}
+  .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:9px 12px;font-size:14px;margin:10px 0}
+  .note.ok{background:var(--ok-soft);color:var(--ok)}
+  .note.bad{background:var(--bad-soft);color:var(--bad)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15px}
+  .kv dt{color:var(--ink2)}
+  .kv dd{margin:0;font-variant-numeric:tabular-nums}
+  .big{font-size:26px;font-weight:700;line-height:1.2}
+  .result{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+  .quiz{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+  .quiz legend{font-weight:600;font-size:15px;padding:0 4px}
+  .opt{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0;cursor:pointer;font-size:15px}
+  .opt input{margin-top:4px;flex:0 0 auto;accent-color:var(--brand)}
+  .opt.correct{border-color:var(--ok);background:var(--ok-soft)}
+  .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+  .fb{font-size:14px;margin-top:6px}
+  .fb.ok{color:var(--ok)}
+  .fb.bad{color:var(--bad)}
+  .flow{counter-reset:f;list-style:none;padding:0;margin:6px 0}
+  .flow li{position:relative;padding:6px 0 6px 34px;counter-increment:f;border-bottom:1px dashed var(--line)}
+  .flow li:last-child{border-bottom:0}
+  .flow li::before{content:counter(f);position:absolute;left:0;top:7px;width:22px;height:22px;border-radius:7px;
+    background:var(--brand);color:var(--brand-ink);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .foot{margin-top:18px}
+  .navrow{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+  .page{display:none}
+  .page.is-active{display:block}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:var(--ink2);margin:6px 0}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">加权马尔科夫链 · 课堂小程序</div>
+    <div class="brand-sub">扫码即用 · 无需安装 · 离线可跑</div>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="学习步骤">
+    <button class="tab is-active" type="button" data-page="p1">1 认识马尔科夫</button>
+    <button class="tab" type="button" data-page="p2">2 为什么要加权</button>
+    <button class="tab" type="button" data-page="p3">3 动手算一算</button>
+    <button class="tab" type="button" data-page="p4">4 课堂小测</button>
+    <button class="tab" type="button" data-page="p5">5 小结与讨论</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <!-- 第 1 页 -->
+  <section class="page is-active" id="p1" aria-label="第 1 步 认识马尔科夫链">
+    <div class="card">
+      <h2><span class="step">1</span>先认识什么叫"马尔科夫"</h2>
+      <p class="lead">要预测"下一个"，只要知道"现在"就够了 —— 这就是马尔科夫性（无后效性）。</p>
+      <div class="formula">
+        <span class="sym">P</span>(<span class="sym">X</span><sub>t+1</sub>=<span class="sym">j</span> | <span class="sym">X</span><sub>t</sub>=<span class="sym">i</span>, <span class="sym">X</span><sub>t-1</sub>, …, <span class="sym">X</span><sub>1</sub>)
+        = <span class="sym">P</span>(<span class="sym">X</span><sub>t+1</sub>=<span class="sym">j</span> | <span class="sym">X</span><sub>t</sub>=<span class="sym">i</span>)
+        = <span class="sym">p</span><sub>ij</sub>
+      </div>
+      <p class="muted">意思是：明天是晴是雨，只看今天；再往前多少天发生了什么，都不再额外提供信息。</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">试</span>天气游走器</h2>
+      <p class="muted">下面是一个三状态的天气链。点按钮，看状态按概率怎么跳。</p>
+      <div class="row" id="wx-states" style="justify-content:center;margin:12px 0">
+        <span class="chip" data-s="1">晴</span>
+        <span class="chip" data-s="2">多云</span>
+        <span class="chip" data-s="3">雨</span>
+      </div>
+      <div class="row" style="justify-content:center">
+        <button class="btn primary" type="button" id="wx-step">走一步</button>
+        <button class="btn" type="button" id="wx-ten">走 10 步</button>
+        <button class="btn" type="button" id="wx-reset">重置</button>
+      </div>
+      <h3>转移概率矩阵</h3>
+      <table class="tbl">
+        <thead><tr><th>今天 \ 明天</th><th>晴</th><th>多云</th><th>雨</th></tr></thead>
+        <tbody>
+          <tr><td class="k">晴</td><td>0.60</td><td>0.30</td><td>0.10</td></tr>
+          <tr><td class="k">多云</td><td>0.30</td><td>0.40</td><td>0.30</td></tr>
+          <tr><td class="k">雨</td><td>0.20</td><td>0.40</td><td>0.40</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">每一行的三个数相加都是 1，表示"从某个状态出发，一定跳到三种状态之一"。</p>
+      <h3>走过的路</h3>
+      <div class="strip" id="wx-path" aria-live="polite"></div>
+      <p class="muted small" id="wx-stat">还没开始走。</p>
+      <div class="note">想一想：连续走 20 步，晴、多云、雨各占多少？换个起点再走，比例会变吗？</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">?</span>只用一个"现在"，真的够吗</h2>
+      <p>马尔科夫链很干净，但它只用最近一个状态。现实中常常是：<strong>"最近怎么样"和"两三年前怎么样"对今天的影响并不一样</strong>。</p>
+      <p>比如某地连续三年偏丰，和只有去年偏丰，对接下来的降水量显然不是同一件事。</p>
+      <p class="lead">把历史信息按"可信度"加权后再做预测 —— 这就是<strong>加权马尔科夫链</strong>。</p>
+      <div class="navrow">
+        <span></span>
+        <button class="btn primary" type="button" data-go="p2">下一步：为什么要加权</button>
+      </div>
+    </div>
+  </section>
+  <!-- 第 2 页 -->
+  <section class="page" id="p2" aria-label="第 2 步 为什么要加权">
+    <div class="card">
+      <h2><span class="step">2</span>把"历史信息"请进来</h2>
+      <p>加权马尔科夫链的思路只有一句话：<strong>用最近 m 个状态各做一次预测，再按各自的"可信度"加权平均。</strong></p>
+      <ul>
+        <li>用 1 年前的转移规律预测一次 → 得到一组概率；</li>
+        <li>用 2 年前、3 年前的转移规律各预测一次 → 又得到几组概率；</li>
+        <li>可信度高的多算一点，可信度低的少算一点，最后得到一组综合概率。</li>
+      </ul>
+      <p class="muted">"可信度"不是拍脑袋，而是由<strong>自相关系数</strong>算出来的：相隔 k 年的数据关系越强，第 k 阶的权重就越大。</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">试</span>权重一变，结论会不会变</h2>
+      <p class="muted small">三个阶各自给出的预测分布已经算好（固定不变），你只调整它们的相对权重。</p>
+      <div class="grid3" style="margin-top:10px">
+        <div>
+          <label class="small" for="ws1">1 年前 · 可信度</label>
+          <input id="ws1" type="range" min="0" max="100" value="50" aria-label="1 年前的权重">
+          <div class="muted small" id="ws1v">50</div>
+        </div>
+        <div>
+          <label class="small" for="ws2">2 年前 · 可信度</label>
+          <input id="ws2" type="range" min="0" max="100" value="30" aria-label="2 年前的权重">
+          <div class="muted small" id="ws2v">30</div>
+        </div>
+        <div>
+          <label class="small" for="ws3">3 年前 · 可信度</label>
+          <input id="ws3" type="range" min="0" max="100" value="20" aria-label="3 年前的权重">
+          <div class="muted small" id="ws3v">20</div>
+        </div>
+      </div>
+      <h3>归一化后的权重</h3>
+      <div id="mix-weights"></div>
+      <h3>综合后的预测概率</h3>
+      <div id="mix-bars" aria-live="polite"></div>
+      <div class="note" id="mix-msg"></div>
+      <p class="muted small">三个阶的分布分别是：1 年前 (0.30, 0.50, 0.20)、2 年前 (0.20, 0.30, 0.50)、3 年前 (0.25, 0.25, 0.50)。</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">式</span>三个公式，把方法固定下来</h2>
+      <h3>① 第 k 阶自相关系数</h3>
+      <div class="formula">
+        <span class="sym">r</span><sub>k</sub> =
+        <span class="frac">
+          <span class="num">Σ<sub>t=1</sub><sup>n-k</sup> (<span class="sym">x</span><sub>t</sub> − <span class="sym">x̄</span>)(<span class="sym">x</span><sub>t+k</sub> − <span class="sym">x̄</span>)</span>
+          <span class="den">Σ<sub>t=1</sub><sup>n</sup> (<span class="sym">x</span><sub>t</sub> − <span class="sym">x̄</span>)<sup>2</sup></span>
+        </span>
+      </div>
+      <p class="muted small">衡量"相隔 k 个时段的数据"有多像：接近 1 表示同向强相关，接近 −1 表示反向相关，接近 0 表示几乎没关系。</p>
+      <h3>② 权重（归一化）</h3>
+      <div class="formula">
+        <span class="sym">w</span><sub>k</sub> =
+        <span class="frac"><span class="num">|<span class="sym">r</span><sub>k</sub>|</span><span class="den">Σ<sub>k=1</sub><sup>m</sup> |<span class="sym">r</span><sub>k</sub>|</span></span>
+        ,&nbsp;&nbsp; Σ<sub>k=1</sub><sup>m</sup> <span class="sym">w</span><sub>k</sub> = 1
+      </div>
+      <h3>③ 加权预测概率</h3>
+      <div class="formula">
+        <span class="sym">p</span><sub>j</sub> = Σ<sub>k=1</sub><sup>m</sup> <span class="sym">w</span><sub>k</sub> · <span class="sym">p</span><sub>ij</sub><sup>(k)</sup>
+        &nbsp;&nbsp;(<span class="sym">j</span> = 1, 2, …, <span class="sym">S</span>)
+      </div>
+      <p class="muted small">其中 <span class="sym">p</span><sub>ij</sub><sup>(k)</sup> 是第 k 阶转移矩阵里，从当前状态 i 出发跳到状态 j 的概率；概率最大的状态就是预测结果。</p>
+      <div class="note">两个常被追问的点：<br>
+        1）权重来自数据本身，不是主观打分；<br>
+        2）r<sub>k</sub> 为负时取绝对值，是教材里常见的简化处理，表示"反向的关联也算信息"。</div>
+      <div class="navrow">
+        <button class="btn" type="button" data-go="p1">上一步</button>
+        <button class="btn primary" type="button" data-go="p3">下一步：拿数据算一遍</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第 3 页 -->
+  <section class="page" id="p3" aria-label="第 3 步 动手算一算">
+    <div class="card">
+      <h2><span class="step">3</span>换成一组数据，完整算一遍</h2>
+      <p class="muted small">状态用数字表示，例如年降水量分成 1 偏枯 / 2 正常 / 3 偏丰。数据可以直接改成你们班的真实记录。</p>
+      <div class="row" style="margin:10px 0">
+        <button class="btn small" type="button" id="dsA">示例A：年降水（25 年）</button>
+        <button class="btn small" type="button" id="dsB">示例B：测验等级（20 次）</button>
+        <button class="btn small" type="button" id="dsRand">随机生成一组</button>
+      </div>
+      <label class="small" for="dsInput">数据序列（空格或逗号分隔，也可以直接写连续数字串）</label>
+      <textarea id="dsInput" rows="2" spellcheck="false" aria-describedby="dsErr"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary small" type="button" id="dsApply">应用这组数据</button>
+        <span class="muted small" id="dsInfo"></span>
+      </div>
+      <p class="note bad" id="dsErr" role="alert" hidden></p>
+      <div class="strip" id="dsStrip" aria-live="polite"></div>
+      <div class="legend" id="dsLegend"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">参</span>阶数 m：用最近多少个状态</h2>
+      <label class="sr" for="mRange">阶数 m</label>
+      <input id="mRange" type="range" min="1" max="5" value="3">
+      <div class="row" style="justify-content:space-between">
+        <span>当前 m = <strong id="mVal">3</strong></span>
+        <span class="muted small" id="mHint">m=1 时退化为普通一阶马尔科夫链</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">①</span>各阶自相关系数与权重</h2>
+      <table class="tbl">
+        <thead><tr><th>阶 k</th><th>自相关系数 r<sub>k</sub></th><th>权重 w<sub>k</sub></th></tr></thead>
+        <tbody id="rTable"></tbody>
+      </table>
+      <div id="rBars" style="margin-top:10px"></div>
+      <p class="muted small">权重之和恒为 1。|r<sub>k</sub>| 越大，说明这一阶的信息越"有话语权"。</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">②</span>各阶转移概率矩阵</h2>
+      <p class="muted small">行 = 起点状态，列 = 终点状态；每一行相加为 1。蓝框标出的是预测时真正用到的那一行。</p>
+      <div id="mats"></div>
+      <div class="note" id="matWarn" hidden></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">③</span>加权预测：和一阶比一比</h2>
+      <table class="tbl">
+        <thead><tr><th>阶 k</th><th>起点状态</th><th id="thDist">该阶预测分布</th><th>权重 w<sub>k</sub></th></tr></thead>
+        <tbody id="predTable"></tbody>
+      </table>
+      <div class="grid2" style="margin-top:12px">
+        <div>
+          <h3>只用最近一年（一阶）</h3>
+          <div id="firstBars"></div>
+          <p class="muted small" id="firstPred"></p>
+        </div>
+        <div>
+          <h3>加权之后（m 阶）</h3>
+          <div id="weightedBars"></div>
+          <p class="muted small" id="weightedPred"></p>
+        </div>
+      </div>
+      <div class="note ok" id="conclusion" aria-live="polite"></div>
+      <h3>把这组结果发出去</h3>
+      <textarea id="copyArea" rows="5" readonly aria-label="结果摘要"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn small" type="button" id="copyBtn">复制结果</button>
+        <span class="muted small" id="copyMsg">手机浏览器里复制失败时，可以长按上面的文字手动复制。</span>
+      </div>
+    </div>
+  </section>
+  <!-- 第 4 页 -->
+  <section class="page" id="p4" aria-label="第 4 步 课堂小测">
+    <div class="card">
+      <h2><span class="step">4</span>课堂小测（选完立刻看解析）</h2>
+      <p class="muted small">得分：<strong id="score">0</strong> / 4</p>
+
+      <fieldset class="quiz" data-q="q1" data-correct="0">
+        <legend>1. 加权马尔科夫链里，各阶转移矩阵的"权重"主要来自</legend>
+        <label class="opt"><input type="radio" name="q1" value="0"><span>各阶的自相关系数 r<sub>k</sub>，由数据算出来</span></label>
+        <label class="opt"><input type="radio" name="q1" value="1"><span>各阶转移概率矩阵每行的和</span></label>
+        <label class="opt"><input type="radio" name="q1" value="2"><span>老师根据经验给每个阶打分</span></label>
+        <div class="fb" hidden></div>
+      </fieldset>
+
+      <fieldset class="quiz" data-q="q2" data-correct="0">
+        <legend>2. 若 r<sub>2</sub> 为负，教材里常取绝对值仍给它一个正权重，这说明</legend>
+        <label class="opt"><input type="radio" name="q2" value="0"><span>相隔两年的状态对当前仍有（反向）关联的信息被计入了</span></label>
+        <label class="opt"><input type="radio" name="q2" value="1"><span>数据算错了，相关系数不可能为负</span></label>
+        <label class="opt"><input type="radio" name="q2" value="2"><span>说明这组数据不能用来做预测</span></label>
+        <div class="fb" hidden></div>
+      </fieldset>
+
+      <fieldset class="quiz" data-q="q3" data-correct="1">
+        <legend>3. 已知 w = (0.6, 0.4)，两阶预测分布为 P<sup>(1)</sup> = (0.8, 0.2)、P<sup>(2)</sup> = (0.3, 0.7)，则状态 1 的加权概率为</legend>
+        <label class="opt"><input type="radio" name="q3" value="0"><span>0.55</span></label>
+        <label class="opt"><input type="radio" name="q3" value="1"><span>0.60</span></label>
+        <label class="opt"><input type="radio" name="q3" value="2"><span>0.66</span></label>
+        <div class="fb" hidden></div>
+      </fieldset>
+
+      <fieldset class="quiz" data-q="q4" data-correct="0">
+        <legend>4. 一组年降水数据只有 9 年，取 m = 4 合适吗？</legend>
+        <label class="opt"><input type="radio" name="q4" value="0"><span>不合适：序列太短，高阶转移矩阵空行多、估计不可靠</span></label>
+        <label class="opt"><input type="radio" name="q4" value="1"><span>合适：阶数越多用到的信息越多，一定更准</span></label>
+        <label class="opt"><input type="radio" name="q4" value="2"><span>只看计算量大不大，和数据长度无关</span></label>
+        <div class="fb" hidden></div>
+      </fieldset>
+
+      <div class="navrow">
+        <button class="btn" type="button" data-go="p3">上一步</button>
+        <button class="btn primary" type="button" data-go="p5">下一步：小结</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第 5 页 -->
+  <section class="page" id="p5" aria-label="第 5 步 小结与讨论">
+    <div class="card">
+      <h2><span class="step">5</span>四步流程与三句提醒</h2>
+      <ol class="flow">
+        <li><strong>划分状态</strong>：把原始数据变成 1、2、3…（阈值怎么定，会影响结论）。</li>
+        <li><strong>统计各阶转移矩阵</strong>：k = 1, 2, …, m 阶，行内频数除以行和即为概率。</li>
+        <li><strong>算自相关系数并定权</strong>：w<sub>k</sub> = |r<sub>k</sub>| / Σ|r<sub>k</sub>|，权重和为 1。</li>
+        <li><strong>加权预测</strong>：p<sub>j</sub> = Σ w<sub>k</sub>·p<sub>ij</sub><sup>(k)</sup>，取概率最大的状态。</li>
+      </ol>
+      <div class="note">三句提醒：<br>
+        1）权重是"算"出来的，不是"评"出来的；<br>
+        2）r<sub>k</sub> 取绝对值是常见简化，也有教材只用正相关；<br>
+        3）序列太短（如 n &lt; 20）时高阶矩阵会出现空行，需要平滑或降低 m。</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">议</span>课堂讨论（举手发言）</h2>
+      <ul>
+        <li>加权之后预测状态发生了翻转，这是"更准了"，还是"信息更多了"？怎么验证哪个更好？</li>
+        <li>如果状态划分的阈值改一点（比如偏丰的门槛提高），预测结果会不会变？为什么？</li>
+        <li>你们的这组数据里，哪一阶的自相关最强？它和实际背景（气候、学习习惯、疫情）能对上吗？</li>
+      </ul>
+      <div class="row">
+        <button class="btn" type="button" id="againBtn">换一组数据再试</button>
+        <button class="btn" type="button" data-go="p3">回到第 3 步</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">收</span>带走这一句</h2>
+      <p class="lead">一阶马尔科夫问"现在决定下一步"；加权马尔科夫接着问"过去几步各自该有多大话语权"。</p>
+      <p class="muted small">本页可在手机上离线使用；数据不会上传到任何服务器，修改数据后刷新即可恢复默认示例。</p>
+      <div class="navrow">
+        <button class="btn" type="button" data-go="p4">上一步</button>
+        <button class="btn primary" type="button" data-go="p1">回到开头</button>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var f3 = function (v) { return (Math.round(v * 1000) / 1000).toFixed(3); };
+  var fs = function (v) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(3); };
+  var pct = function (v) { return (v * 100).toFixed(1) + '%'; };
+  var stateColor = function (s) { return 'var(--s' + (((s - 1) % 5) + 1) + ')'; };
+
+  /* ================= 核心算法：加权马尔科夫链 ================= */
+  function analyze(states, m) {
+    var n = states.length;
+    var S = 0, i, j, k, t;
+    for (i = 0; i < n; i++) { if (states[i] > S) { S = states[i]; } }
+    var mean = states.reduce(function (a, b) { return a + b; }, 0) / n;
+    var denom = states.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0);
+
+    var r = [];
+    for (k = 1; k <= m; k++) {
+      var num = 0;
+      for (t = 0; t < n - k; t++) { num += (states[t] - mean) * (states[t + k] - mean); }
+      r.push(denom !== 0 ? num / denom : 0);
+    }
+    var totalAbs = r.reduce(function (a, b) { return a + Math.abs(b); }, 0);
+    var w = r.map(function (v) { return totalAbs > 0 ? Math.abs(v) / totalAbs : 1 / m; });
+
+    var marginal = [], countsAll = [];
+    for (i = 0; i < n; i++) { countsAll[states[i] - 1] = (countsAll[states[i] - 1] || 0) + 1; }
+    for (i = 0; i < S; i++) { marginal.push((countsAll[i] || 0) / n); }
+
+    var trans = {};
+    for (k = 1; k <= m; k++) {
+      var counts = [];
+      for (i = 0; i < S; i++) { counts.push(new Array(S).fill(0)); }
+      for (t = 0; t < n - k; t++) { counts[states[t] - 1][states[t + k] - 1] += 1; }
+      var probs = [], empty = [];
+      for (i = 0; i < S; i++) {
+        var tot = counts[i].reduce(function (a, b) { return a + b; }, 0);
+        if (tot > 0) {
+          probs.push(counts[i].map(function (c) { return c / tot; }));
+        } else {
+          probs.push(marginal.slice());
+          empty.push(i + 1);
+        }
+      }
+      trans[k] = { counts: counts, probs: probs, empty: empty };
+    }
+
+    var rows = {}, start = [];
+    for (k = 1; k <= m; k++) {
+      start.push(states[n - k]);
+      rows[k] = trans[k].probs[states[n - k] - 1].slice();
+    }
+    var weighted = [];
+    for (j = 0; j < S; j++) {
+      var acc2 = 0;
+      for (k = 1; k <= m; k++) { acc2 += w[k - 1] * rows[k][j]; }
+      weighted.push(acc2);
+    }
+    var argmax = function (arr) {
+      var best = 0;
+      for (var q = 1; q < arr.length; q++) { if (arr[q] > arr[best]) { best = q; } }
+      return best + 1;
+    };
+    return {
+      n: n, S: S, m: m, mean: mean, r: r, w: w, trans: trans, rows: rows, start: start,
+      weighted: weighted, first: rows[1], marginal: marginal,
+      predWeighted: argmax(weighted), predFirst: argmax(rows[1])
+    };
+  }
+
+  /* ================= 页面切换 ================= */
+  var PAGES = ['p1', 'p2', 'p3', 'p4', 'p5'];
+  function showPage(id, scroll) {
+    if (PAGES.indexOf(id) < 0) { return; }
+    $$('.page').forEach(function (p) { p.classList.toggle('is-active', p.id === id); });
+    $$('.tab').forEach(function (t) { t.classList.toggle('is-active', t.dataset.page === id); });
+    try { history.replaceState(null, '', '#' + id); } catch (e) { }
+    if (scroll !== false) { window.scrollTo(0, 0); }
+    var tab = $('.tab[data-page="' + id + '"]');
+    if (tab && tab.scrollIntoView) { tab.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+  }
+  $$('.tab').forEach(function (t) {
+    t.addEventListener('click', function () { showPage(t.dataset.page); });
+  });
+  $$('[data-go]').forEach(function (b) {
+    b.addEventListener('click', function () { showPage(b.dataset.go); });
+  });
+
+  /* ================= 第 1 页：天气游走 ================= */
+  var WX_P = [[0.6, 0.3, 0.1], [0.3, 0.4, 0.3], [0.2, 0.4, 0.4]];
+  var WX_NAME = ['晴', '多云', '雨'];
+  var wxCur = 1, wxPath = [1];
+  function wxRender() {
+    $$('#wx-states .chip').forEach(function (c) {
+      var on = Number(c.dataset.s) === wxCur;
+      c.style.outline = on ? '2px solid var(--brand)' : 'none';
+      c.style.outlineOffset = '1px';
+      c.style.opacity = on ? '1' : '.55';
+    });
+    var strip = $('#wx-path');
+    strip.innerHTML = '';
+    wxPath.slice(-30).forEach(function (s) {
+      var d = document.createElement('span');
+      d.className = 'cell';
+      d.style.background = stateColor(s);
+      d.textContent = s;
+      d.title = WX_NAME[s - 1];
+      strip.appendChild(d);
+    });
+    var counts = [0, 0, 0];
+    wxPath.forEach(function (s) { counts[s - 1] += 1; });
+    $('#wx-stat').textContent = '共 ' + (wxPath.length - 1) + ' 步：' + WX_NAME.map(function (n, i) {
+      return n + ' ' + counts[i] + ' 次（' + pct(counts[i] / wxPath.length) + '）';
+    }).join(' · ') + '　｜　当前：' + WX_NAME[wxCur - 1];
+  }
+  function wxStep() {
+    var u = Math.random(), acc = 0, row = WX_P[wxCur - 1];
+    for (var s = 1; s <= 3; s++) {
+      acc += row[s - 1];
+      if (u <= acc) { wxCur = s; break; }
+    }
+    wxPath.push(wxCur);
+    wxRender();
+  }
+  $('#wx-step').addEventListener('click', wxStep);
+  $('#wx-ten').addEventListener('click', function () { for (var i = 0; i < 10; i++) { wxStep(); } });
+  $('#wx-reset').addEventListener('click', function () { wxCur = 1; wxPath = [1]; wxRender(); });
+
+  /* ================= 第 2 页：权重实验 ================= */
+  var MIX = [[0.30, 0.50, 0.20], [0.20, 0.30, 0.50], [0.25, 0.25, 0.50]];
+  var MIX_LAB = ['状态 1', '状态 2', '状态 3'];
+  function renderBars(el, values, labels, colors) {
+    el.innerHTML = '';
+    values.forEach(function (v, i) {
+      var line = document.createElement('div');
+      line.className = 'barline';
+      var lab = document.createElement('span');
+      lab.className = 'lab';
+      lab.textContent = labels[i];
+      var bar = document.createElement('div');
+      bar.className = 'bar';
+      var fill = document.createElement('i');
+      fill.style.width = Math.max(0, Math.min(1, v)) * 100 + '%';
+      if (colors) { fill.style.background = colors[i]; }
+      bar.appendChild(fill);
+      var val = document.createElement('span');
+      val.className = 'val';
+      val.textContent = pct(v);
+      line.appendChild(lab); line.appendChild(bar); line.appendChild(val);
+      el.appendChild(line);
+    });
+  }
+  function mixRender() {
+    var raw = [Number($('#ws1').value), Number($('#ws2').value), Number($('#ws3').value)];
+    var sum = raw[0] + raw[1] + raw[2];
+    var w = sum > 0 ? raw.map(function (v) { return v / sum; }) : [1 / 3, 1 / 3, 1 / 3];
+    ['#ws1v', '#ws2v', '#ws3v'].forEach(function (sel, i) {
+      $(sel).textContent = raw[i] + '  →  归一化权重 ' + pct(w[i]);
+    });
+    renderBars($('#mix-weights'), w,
+      ['w₁（1 年前）', 'w₂（2 年前）', 'w₃（3 年前）'],
+      ['var(--s1)', 'var(--s2)', 'var(--s3)']);
+    var comb = [0, 1, 2].map(function (j) {
+      return w[0] * MIX[0][j] + w[1] * MIX[1][j] + w[2] * MIX[2][j];
+    });
+    renderBars($('#mix-bars'), comb, MIX_LAB, ['var(--s1)', 'var(--s2)', 'var(--s3)']);
+    var best = comb.indexOf(Math.max.apply(null, comb)) + 1;
+    var base = MIX[0].indexOf(Math.max.apply(null, MIX[0])) + 1;
+    $('#mix-msg').textContent = '当前预测：状态 ' + best + '（' + pct(comb[best - 1]) + '）。' +
+      (best === base
+        ? '和只看 1 年前的结果一致 —— 但概率分布已经不一样了。'
+        : '注意：只看 1 年前会预测状态 ' + base + '，加权之后结论已经被改写。');
+  }
+  ['#ws1', '#ws2', '#ws3'].forEach(function (sel) {
+    $(sel).addEventListener('input', mixRender);
+  });
+
+  /* ================= 第 3 页：数据与计算 ================= */
+  var PRESETS = {
+    A: {
+      text: '2111111323332233223333222',
+      title: '某地年降水量等级（25 年）',
+      unit: '年',
+      labels: ['偏枯', '正常', '偏丰']
+    },
+    B: {
+      text: '32223323111111223323',
+      title: '某同学 20 次测验等级',
+      unit: '次',
+      labels: ['待提高', '合格', '优秀']
+    }
+  };
+  var cur = null;          // { states, labels, unit, title }
+
+  function parseStates(text) {
+    var tokens = String(text).match(/\d+/g) || [];
+    var out = [];
+    tokens.forEach(function (tk) {
+      for (var i = 0; i < tk.length; i++) { out.push(Number(tk.charAt(i))); }
+    });
+    return out;
+  }
+  function labelFor(s) {
+    if (cur && cur.labels && cur.labels[s - 1]) { return '状态 ' + s + '（' + cur.labels[s - 1] + '）'; }
+    return '状态 ' + s;
+  }
+  function shortLabel(s) {
+    if (cur && cur.labels && cur.labels[s - 1]) { return cur.labels[s - 1]; }
+    return '状态' + s;
+  }
+
+  function setError(msg) {
+    var box = $('#dsErr');
+    if (msg) { box.textContent = msg; box.hidden = false; }
+    else { box.hidden = true; box.textContent = ''; }
+  }
+
+  function loadData(states, meta) {
+    cur = { states: states.slice(), labels: (meta && meta.labels) || null, unit: (meta && meta.unit) || '期', title: (meta && meta.title) || '自定义数据' };
+    $('#dsInput').value = states.join('');
+    var maxM = Math.max(1, Math.min(5, states.length - 2));
+    $('#mRange').max = String(maxM);
+    if (Number($('#mRange').value) > maxM) { $('#mRange').value = String(maxM); }
+    render();
+  }
+
+  function applyInput() {
+    var states = parseStates($('#dsInput').value);
+    if (states.length < 8) {
+      setError('至少需要 8 个状态才能估计出各阶转移概率，请多录入一些数据。');
+      return;
+    }
+    if (states.some(function (v) { return v < 1 || v > 5; })) {
+      setError('状态只能是 1~5 之间的整数（比如 1 偏枯 / 2 正常 / 3 偏丰）。');
+      return;
+    }
+    var uniq = {};
+    states.forEach(function (v) { uniq[v] = 1; });
+    if (Object.keys(uniq).length < 2) {
+      setError('这组数据只有一种状态，无法计算转移概率。');
+      return;
+    }
+    setError('');
+    loadData(states, null);
+  }
+
+  function render() {
+    if (!cur) { return; }
+    var states = cur.states, n = states.length;
+    var m = Number($('#mRange').value);
+    var res = analyze(states, m);
+
+    $('#mVal').textContent = String(m);
+    $('#mHint').textContent = m === 1
+      ? 'm = 1 时退化为普通一阶马尔科夫链'
+      : '用最近 ' + m + ' 个状态参与加权';
+
+    /* 序列条 */
+    var strip = $('#dsStrip');
+    strip.innerHTML = '';
+    states.forEach(function (s, i) {
+      var d = document.createElement('span');
+      d.className = 'cell' + (i >= n - m ? ' mark' : '');
+      d.style.background = stateColor(s);
+      d.textContent = s;
+      d.title = '第 ' + (i + 1) + ' ' + cur.unit + '：' + shortLabel(s);
+      strip.appendChild(d);
+    });
+    var legend = $('#dsLegend');
+    legend.innerHTML = '';
+    for (var s = 1; s <= res.S; s++) {
+      var item = document.createElement('span');
+      var dot = document.createElement('i');
+      dot.style.background = stateColor(s);
+      item.appendChild(dot);
+      item.appendChild(document.createTextNode(shortLabel(s) + '（记作 ' + s + '）'));
+      legend.appendChild(item);
+    }
+    var marked = document.createElement('span');
+    marked.textContent = '粗框 = 参与预测的最近 ' + m + ' ' + cur.unit;
+    legend.appendChild(marked);
+    $('#dsInfo').textContent = 'n = ' + n + ' ' + cur.unit + '，共 ' + res.S + ' 种状态；' + cur.title;
+
+    /* ① 自相关系数与权重 */
+    var tb = $('#rTable');
+    tb.innerHTML = '';
+    for (var k = 1; k <= m; k++) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="k">' + k + '</td><td>' + fs(res.r[k - 1]) + '</td><td>' + f3(res.w[k - 1]) + '</td>';
+      tb.appendChild(tr);
+    }
+    renderBars($('#rBars'), res.w.map(function (v) { return v; }),
+      res.w.map(function (v, i) { return 'w' + (i + 1); }),
+      ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'].slice(0, m));
+
+    /* ② 各阶转移矩阵 */
+    var mats = $('#mats');
+    mats.innerHTML = '';
+    var warnings = [];
+    for (var kk = 1; kk <= m; kk++) {
+      var st = res.trans[kk];
+      var box = document.createElement('div');
+      box.className = 'matwrap';
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = '第 ' + kk + ' 阶（' + kk + ' ' + cur.unit + '转移）　蓝框行 = 起点状态 ' + shortLabel(res.start[kk - 1]);
+      box.appendChild(cap);
+      var table = document.createElement('table');
+      table.className = 'tbl mat';
+      var head = '<thead><tr><th>起点 \\ 终点</th>';
+      for (var j2 = 1; j2 <= res.S; j2++) { head += '<th>' + shortLabel(j2) + '</th>'; }
+      head += '</tr></thead>';
+      var body = '<tbody>';
+      for (var i2 = 1; i2 <= res.S; i2++) {
+        body += '<tr><td class="k">' + shortLabel(i2) + '</td>';
+        for (var j3 = 1; j3 <= res.S; j3++) {
+          var p = st.probs[i2 - 1][j3 - 1];
+          var alpha = (p * 0.62).toFixed(3);
+          var fg = p > 0.45 ? '#ffffff' : 'var(--ink)';
+          var hl = (i2 === res.start[kk - 1]) ? ' hl' : '';
+          body += '<td class="' + hl.trim() + '" style="background:rgba(43,110,214,' + alpha + ');color:' + fg + '">' +
+            (p * 100).toFixed(0) + '%</td>';
+        }
+        body += '</tr>';
+      }
+      body += '</tbody>';
+      table.innerHTML = head + body;
+      box.appendChild(table);
+      mats.appendChild(box);
+      if (st.empty.length) {
+        warnings.push('第 ' + kk + ' 阶里 ' + st.empty.map(function (s3) { return shortLabel(s3); }).join('、') +
+          ' 作为起点没有出现过，该行暂用总体频率代替（严格做法需要平滑或把 m 调小）。');
+      }
+    }
+    var warnBox = $('#matWarn');
+    if (warnings.length) { warnBox.hidden = false; warnBox.textContent = warnings.join(' '); }
+    else { warnBox.hidden = true; warnBox.textContent = ''; }
+
+    /* ③ 各阶预测分布 */
+    $('#thDist').textContent = '各状态概率（' + res.marginal.map(function (_, idx) { return shortLabel(idx + 1); }).join(' / ') + '）';
+    var pt = $('#predTable');
+    pt.innerHTML = '';
+    for (var k3 = 1; k3 <= m; k3++) {
+      var tr3 = document.createElement('tr');
+      tr3.innerHTML = '<td class="k">' + k3 + '</td><td>' + shortLabel(res.start[k3 - 1]) + '</td><td>' +
+        res.rows[k3].map(f3).join(' / ') + '</td><td>' + f3(res.w[k3 - 1]) + '</td>';
+      pt.appendChild(tr3);
+    }
+    var trSum = document.createElement('tr');
+    trSum.innerHTML = '<td class="k">加权</td><td>—</td><td><strong>' + res.weighted.map(f3).join(' / ') +
+      '</strong></td><td>Σw = ' + f3(res.w.reduce(function (a, b) { return a + b; }, 0)) + '</td>';
+    pt.appendChild(trSum);
+
+    var labels = [];
+    for (var s4 = 1; s4 <= res.S; s4++) { labels.push(shortLabel(s4)); }
+    renderBars($('#firstBars'), res.first, labels,
+      labels.map(function (_, i) { return stateColor(i + 1); }));
+    renderBars($('#weightedBars'), res.weighted, labels,
+      labels.map(function (_, i) { return stateColor(i + 1); }));
+    $('#firstPred').textContent = '预测：' + labelFor(res.predFirst) + '，概率 ' + pct(res.first[res.predFirst - 1]);
+    $('#weightedPred').textContent = '预测：' + labelFor(res.predWeighted) + '，概率 ' + pct(res.weighted[res.predWeighted - 1]);
+    var conc = $('#conclusion');
+    if (res.predFirst !== res.predWeighted) {
+      conc.textContent = '结论不一样：只看最近一个状态会预测「' + shortLabel(res.predFirst) + '」，' +
+        '把 ' + m + ' 个阶加权之后改成了「' + shortLabel(res.predWeighted) + '」。' +
+        '权重较大的阶，实际上主导了这次预测。';
+    } else {
+      conc.textContent = '结论与一阶一致（都是「' + shortLabel(res.predWeighted) + '」），' +
+        '但两种方法的概率分布并不相同，' +
+        '一阶给它的概率是 ' + pct(res.first[res.predWeighted - 1]) +
+        '，加权后是 ' + pct(res.weighted[res.predWeighted - 1]) + '。';
+    }
+
+    /* 结果摘要 */
+    var lines = [];
+    lines.push('【加权马尔科夫链 · 我的结果】');
+    lines.push('数据（n=' + n + '，' + cur.title + '）：' + states.join(''));
+    lines.push('阶数 m=' + m);
+    lines.push('权重：' + res.w.map(function (v, i) {
+      return 'w' + (i + 1) + '=' + f3(v) + '（r' + (i + 1) + '=' + fs(res.r[i]) + '）';
+    }).join('，'));
+    for (var k4 = 1; k4 <= m; k4++) {
+      lines.push('  ' + k4 + ' 阶（起点 ' + shortLabel(res.start[k4 - 1]) + '）：' + res.rows[k4].map(f3).join(', '));
+    }
+    lines.push('加权预测分布：' + res.weighted.map(f3).join(', '));
+    lines.push('一阶预测：' + shortLabel(res.predFirst) + '（' + pct(res.first[res.predFirst - 1]) + '）　' +
+      '加权预测：' + shortLabel(res.predWeighted) + '（' + pct(res.weighted[res.predWeighted - 1]) + '）');
+    $('#copyArea').value = lines.join('\n');
+  }
+
+  $('#dsA').addEventListener('click', function () { setError(''); loadData(parseStates(PRESETS.A.text), PRESETS.A); });
+  $('#dsB').addEventListener('click', function () { setError(''); loadData(parseStates(PRESETS.B.text), PRESETS.B); });
+  $('#dsApply').addEventListener('click', applyInput);
+  $('#dsRand').addEventListener('click', function () {
+    var p = [[0.46, 0.34, 0.20], [0.22, 0.55, 0.23], [0.16, 0.36, 0.48]];
+    var states = [], curS = 1 + Math.floor(Math.random() * 3);
+    for (var i = 0; i < 25; i++) {
+      states.push(curS);
+      var u = Math.random(), acc = 0;
+      for (var s = 1; s <= 3; s++) {
+        acc += p[curS - 1][s - 1];
+        if (u <= acc) { curS = s; break; }
+      }
+    }
+    setError('');
+    loadData(states, { labels: ['偏少', '正常', '偏多'], unit: '年', title: '随机生成的 25 年数据' });
+  });
+  $('#mRange').addEventListener('input', render);
+
+  function doCopy() {
+    var ta = $('#copyArea');
+    var done = false;
+    var finish = function (ok) {
+      $('#copyMsg').textContent = ok ? '已复制，粘贴到班级群里就行。' : '复制失败：请长按上面的文字手动复制。';
+      if (ok && navigator.vibrate) { try { navigator.vibrate(25); } catch (e) { } }
+    };
+    var fallback = function () {
+      try {
+        ta.focus(); ta.select();
+        done = document.execCommand('copy');
+      } catch (e) { done = false; }
+      finish(done);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(ta.value).then(function () { finish(true); }, fallback);
+    } else { fallback(); }
+  }
+  $('#copyBtn').addEventListener('click', doCopy);
+  $('#againBtn').addEventListener('click', function () {
+    $('#dsRand').click();
+    showPage('p3');
+  });
+
+  /* ================= 第 4 页：小测 ================= */
+  var EXPL = {
+    q1: {
+      ok: '对。w_k = |r_k| / Σ|r_k|，权重完全由数据决定，不需要主观打分。',
+      bad: '再想想：权重不是评出来的，而是由各阶自相关系数 r_k 算出来的。'
+    },
+    q2: {
+      ok: '对。负相关表示反向影响，它同样携带信息；取绝对值是教材里常见的简化。',
+      bad: '相关系数为负是正常现象，表示反向关联；取 |r_k| 是把这部分信息也计入权重。'
+    },
+    q3: {
+      ok: '对：0.6 × 0.8 + 0.4 × 0.3 = 0.48 + 0.12 = 0.60，加权后各状态概率之和仍为 1。',
+      bad: '算一遍：0.6 × 0.8 + 0.4 × 0.3 = 0.48 + 0.12 = 0.60。'
+    },
+    q4: {
+      ok: '对。序列太短时高阶矩阵频数太少甚至出现空行，一般建议 n ≥ 20~25，m 取 3~5。',
+      bad: '阶数不是越多越好：n 太小时高阶矩阵空行多，估计反而不可靠。'
+    }
+  };
+  var score = 0, answered = {};
+  $$('.quiz').forEach(function (q) {
+    q.addEventListener('change', function (e) {
+      if (!e.target.matches('input[type="radio"]')) { return; }
+      var key = q.dataset.q;
+      var correctIdx = Number(q.dataset.correct);
+      var picked = Number(e.target.value);
+      var opts = q.querySelectorAll('.opt');
+      for (var i = 0; i < opts.length; i++) {
+        opts[i].classList.remove('correct', 'wrong');
+        if (i === correctIdx) { opts[i].classList.add('correct'); }
+        else if (i === picked) { opts[i].classList.add('wrong'); }
+      }
+      var fb = q.querySelector('.fb');
+      fb.hidden = false;
+      fb.className = 'fb ' + (picked === correctIdx ? 'ok' : 'bad');
+      fb.textContent = (picked === correctIdx ? '✔ 答对了。' : '✘ 正确答案已标出。') + EXPL[key][picked === correctIdx ? 'ok' : 'bad'];
+      if (!answered[key]) {
+        answered[key] = true;
+        if (picked === correctIdx) { score += 1; }
+        $('#score').textContent = String(score);
+      }
+    });
+  });
+
+  /* ================= 初始化 ================= */
+  loadData(parseStates(PRESETS.A.text), PRESETS.A);
+  wxRender();
+  mixRender();
+  var hash = (location.hash || '').replace('#', '');
+  showPage(PAGES.indexOf(hash) >= 0 ? hash : 'p1', false);
+})();
+</script>
+</body>
+</html>
